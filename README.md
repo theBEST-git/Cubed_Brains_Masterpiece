@@ -2,10 +2,11 @@
 [🌐 Ultimate Solution → SnowGOAT](https://snowgoat.vercel.app/)
 
 ## Overview  
-The challenge was to determine the **“best ski resort option.”**  
-Instead of following the usual one-size-fits-all approach, we developed a full **data science pipeline** that delivers **personalized, data-driven recommendations** tailored to each user’s preferences.
+The challenge was to determine the **“best ski resort option.”**
 
-**Highlight:** We broke from the conventional “single best option” model by blending **forecasting + vectorized multi-criteria comparison + user-driven weighting** — enabling **future-oriented, personalized decisions.**
+However, **what does it really mean to be the Best**?
+
+Instead of following the usual one-size-fits-all approach, we developed a full **data science pipeline** that delivers **personalized, data-driven recommendations** tailored to each user’s preferences🔥🔥🔥.
 
 ## Our Approach (in a nutshell)  
 0. **External data collection** – gathered additional datasets (accommodation, pricing, facilities) via online research and pipelines.  
