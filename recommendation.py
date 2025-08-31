@@ -92,14 +92,14 @@ if selects_sydney:
 if selects_canberra:
     weights["distance_from_melbourne"] = 0.0
     weights["distance_from_sydney"] = 0.0
-    weights["distance_from_canberra"] = 1.0
+    weights["distance_from_canberra"] = 2.0
     weights["distance_from_bendigo"] = 0.0
 
 if selects_bendigo:
     weights["distance_from_melbourne"] = 0.0
     weights["distance_from_sydney"] = 0.0
     weights["distance_from_canberra"] = 0.0
-    weights["distance_from_bendigo"] = 1.0
+    weights["distance_from_bendigo"] = 2.0
 
 if selects_beginner:
     weights["beginner_terrain_%"] = 2.5
@@ -108,19 +108,11 @@ if selects_beginner:
     weights["ski_lessons_available"] = 2.5
     weights["race_programs_available"] = 0.0
 
-
 if selects_intermediate:
     weights["beginner_terrain_%"] = 0.0
     weights["intermediate_terrain_%"] = 2.5
     weights["advanced_terrain_%"] = 0.0
     weights["ski_lessons_available"] = 0.5
-
-if selects_advanced:
-    weights["beginner_terrain_%"] = 0.0
-    weights["intermediate_terrain_%"] = 0.0
-    weights["advanced_terrain_%"] = 2.5
-    weights["ski_lessons_available"] = 0.0
-    weights["race_programs_available"] = 1.5
 
 if selects_advanced:
     weights["beginner_terrain_%"] = 0.0
