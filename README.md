@@ -4,7 +4,7 @@
 ## Overview  
 The challenge was to determine the **“best ski resort option.”**
 
-However, **what does it really mean to be the Best**?
+However, **what does it really mean to be "the BEST"**?
 
 Instead of following the usual one-size-fits-all approach, we developed a full **data science pipeline** that delivers **personalized, data-driven recommendations** tailored to each user’s preferences🔥🔥🔥.
 
