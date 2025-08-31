@@ -483,14 +483,18 @@ const HARDCODED_DATA = [
 ];
 
 /* -------------------- Helpers -------------------- */
-const buildWeights = ({ city, skill, withKids, wantXC }) => {
+const buildWeights = ({ city, skill, withKids, wantXC, careDistance }) => {
   const w = { ...BASE_WEIGHTS };
 
-  // City focus (boost chosen, zero others)
-  w.distance_from_melbourne = city === "Melbourne" ? 2.0 : 0.0;
-  w.distance_from_sydney   = city === "Sydney" ? 2.0 : 0.0;
-  w.distance_from_canberra = city === "Canberra" ? 2.0 : 0.0;
-  w.distance_from_bendigo  = city === "Bendigo" ? 2.0 : 0.0;
+  // Distance weighting: boost only the chosen city’s distance feature.
+  // OFF  -> 2.0 (original behavior)
+  // ON   -> 4.0 (stronger emphasis on travel time)
+  const cityDistanceWeight = careDistance ? 10.0 : 2.0;
+
+  w.distance_from_melbourne = city === "Melbourne" ? cityDistanceWeight : 0.0;
+  w.distance_from_sydney   = city === "Sydney"   ? cityDistanceWeight : 0.0;
+  w.distance_from_canberra = city === "Canberra" ? cityDistanceWeight : 0.0;
+  w.distance_from_bendigo  = city === "Bendigo"  ? cityDistanceWeight : 0.0;
 
   // Skill
   if (skill === "beginner") {
@@ -606,7 +610,6 @@ function computeTopsisScore(rows, features, prefs) {
 }
 
 /* -------------------- Simple Horizontal BarChart -------------------- */
-/* Renders top N resorts, left-to-right bars scaled to max score */
 function ScoreBars({ data, topN = 6 }) {
   const top = data.slice(0, topN);
   const max = top.length ? Math.max(...top.map((d) => d.topsis_score)) : 1;
@@ -619,7 +622,7 @@ function ScoreBars({ data, topN = 6 }) {
       </div>
       <div className="space-y-2">
         {top.map((d, idx) => {
-          const pct = Math.max(2, Math.round((d.topsis_score / max) * 100)); // min 2% for visibility
+          const pct = Math.max(2, Math.round((d.topsis_score / max) * 100));
           return (
             <div key={d.resort + idx}>
               <div className="flex items-center justify-between text-xs mb-1">
@@ -648,13 +651,14 @@ export default function App() {
   const [skill, setSkill] = useState("intermediate");
   const [withKids, setWithKids] = useState(false);
   const [wantXC, setWantXC] = useState(false);
+  const [careDistance, setCareDistance] = useState(false); // NEW
   const [searchText, setSearchText] = useState("");
 
   const ranked = useMemo(() => {
     return computeTopsisScore(HARDCODED_DATA, ALL_FEATURES, {
-      city, skill, withKids, wantXC,
+      city, skill, withKids, wantXC, careDistance,
     });
-  }, [city, skill, withKids, wantXC]);
+  }, [city, skill, withKids, wantXC, careDistance]);
 
   const filtered = useMemo(() => {
     if (!searchText) return ranked;
@@ -670,12 +674,19 @@ export default function App() {
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
           <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-400 to-fuchsia-400 bg-clip-text text-transparent">
-              🎿 SnowGOAT
-            </h1>
-            <p className="text-slate-300 mt-1">
-             Your Choices, our Ranking → Smarter Recommendations for your Snow Holiday.
-            </p>
+          <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+  <div>
+    <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight 
+                   bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-pink-400 
+                   bg-clip-text text-transparent drop-shadow-lg">
+      🎿 SnowGOAT
+    </h1>
+    <p className="text-lg md:text-xl text-slate-300 mt-2 font-medium">
+      Your Choices, our Ranking → Smarter Recommendations for your Snow Holiday.
+    </p>
+  </div>
+</header>
+
           </div>
         </header>
 
@@ -694,9 +705,17 @@ export default function App() {
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
-              <p className="text-xs text-slate-400 mt-1">
-                We weight distance for your selected city more heavily.
-              </p>
+
+              <div className="mt-3 space-y-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={careDistance}
+                    onChange={(e) => setCareDistance(e.target.checked)}
+                  />
+                  Prioritise shorter travel distance
+                </label>
+              </div>
             </div>
 
             {/* Skill */}
@@ -725,7 +744,7 @@ export default function App() {
 
             {/* Toggles */}
             <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-lg">
-              <h2 className="text-lg font-semibold mb-2">Preferences</h2>
+              <h2 className="text-lg font-semibold mb-2">Special Preferences</h2>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -773,7 +792,7 @@ export default function App() {
                   )}
                 </div>
               ) : (
-                <p className="text-slate-200 mt-2">No matches.</p>
+                <p className="text-slate-2 00 mt-2">No matches.</p>
               )}
             </div>
 
@@ -812,9 +831,7 @@ export default function App() {
                         <td className="px-4 py-3">
                           {r.best_week_label ??
                             (r.best_week
-                              ? `Week ${r.best_week} (${
-                                  WEEK_LABELS[r.best_week] || "N/A"
-                                })`
+                              ? `Week ${r.best_week} (${WEEK_LABELS[r.best_week] || "N/A"})`
                               : "—")}
                         </td>
                         <td className="px-4 py-3">
