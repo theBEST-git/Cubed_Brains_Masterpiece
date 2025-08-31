@@ -18,6 +18,7 @@ weights = {
     "num_lifts": 1.5,
     "longest_run": 1.0,
     "num_terrain_parks": 1.0,
+    "cross_country_trail_length": 1.0,
 
     # Terrain difficulty distribution
     "beginner_terrain_%": 1.0,
@@ -65,7 +66,82 @@ weights = {
     "biggest_snowfall": 1.0
 }
 
-# Example list of features for TOPSIS
+# Adjust weights based on user preferences
+selects_melbourne = True
+selects_sydney = False
+selects_canberra = False
+selects_bendigo = False
+selects_beginner = True
+selects_intermediate = False
+selects_advanced = False
+selects_travelling_with_children = True
+selects_cross_country_skiing = False
+
+if selects_melbourne:
+    weights["distance_from_melbourne"] = 2.0
+    weights["distance_from_sydney"] = 0.0
+    weights["distance_from_canberra"] = 0.0
+    weights["distance_from_bendigo"] = 0.0
+
+if selects_sydney:
+    weights["distance_from_melbourne"] = 0.0
+    weights["distance_from_sydney"] = 2.0
+    weights["distance_from_canberra"] = 0.0
+    weights["distance_from_bendigo"] = 0.0
+
+if selects_canberra:
+    weights["distance_from_melbourne"] = 0.0
+    weights["distance_from_sydney"] = 0.0
+    weights["distance_from_canberra"] = 1.0
+    weights["distance_from_bendigo"] = 0.0
+
+if selects_bendigo:
+    weights["distance_from_melbourne"] = 0.0
+    weights["distance_from_sydney"] = 0.0
+    weights["distance_from_canberra"] = 0.0
+    weights["distance_from_bendigo"] = 1.0
+
+if selects_beginner:
+    weights["beginner_terrain_%"] = 2.5
+    weights["intermediate_terrain_%"] = 0.0
+    weights["advanced_terrain_%"] = 0.0
+    weights["ski_lessons_available"] = 2.5
+    weights["race_programs_available"] = 0.0
+
+
+if selects_intermediate:
+    weights["beginner_terrain_%"] = 0.0
+    weights["intermediate_terrain_%"] = 2.5
+    weights["advanced_terrain_%"] = 0.0
+    weights["ski_lessons_available"] = 0.5
+
+if selects_advanced:
+    weights["beginner_terrain_%"] = 0.0
+    weights["intermediate_terrain_%"] = 0.0
+    weights["advanced_terrain_%"] = 2.5
+    weights["ski_lessons_available"] = 0.0
+    weights["race_programs_available"] = 1.5
+
+if selects_advanced:
+    weights["beginner_terrain_%"] = 0.0
+    weights["intermediate_terrain_%"] = 0.0
+    weights["advanced_terrain_%"] = 2.5
+    weights["ski_lessons_available"] = 0.0
+    weights["race_programs_available"] = 1.5
+
+if selects_travelling_with_children:
+    weights["childcare_available"] = 2.5
+    weights["tobogganing_available"] = 1.5
+    weights["snow_tubing_available"] = 1.5
+    weights["husky_sledding_available"] = 1.0
+    weights["dingo_walks_available"] = 0.5
+
+if selects_cross_country_skiing: 
+    weights["cross_country_skiing_available"] = 2.0
+    weights["cross_country_trail_length"] = 2.0
+
+
+# List of features for TOPSIS
 features = [
     "predicted_visitors",
     "rating",
@@ -75,6 +151,7 @@ features = [
     "num_lifts",
     "longest_run",
     "num_terrain_parks",
+    "cross_country_trail_length",
     "beginner_terrain_%",
     "intermediate_terrain_%",
     "advanced_terrain_%",
