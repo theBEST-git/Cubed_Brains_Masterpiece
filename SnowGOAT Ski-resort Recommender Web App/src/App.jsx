@@ -510,8 +510,8 @@ const buildWeights = ({ city, skill, withKids, wantXC, careDistance, carePrice, 
 
   // Price weighting: boost price importance when user cares about cost
   // OFF  -> 1.5 (original behavior)
-  // ON   -> 3.0 (stronger emphasis on affordability)
-  w.price = carePrice ? 3.0 : 1.5;
+  // ON   -> 8.0 (much stronger emphasis on affordability)
+  w.price = carePrice ? 8.0 : 1.5;
 
   // Skill
   if (skill === "beginner") {
