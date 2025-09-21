@@ -64,6 +64,7 @@ const ALL_FEATURES = [
   "average_mountain_base_snow_depth",
   "max_mountain_base_snow_depth",
   "biggest_snowfall",
+  "price",
 ];
 
 const COST_FEATURES = new Set([
@@ -73,6 +74,7 @@ const COST_FEATURES = new Set([
   "distance_from_canberra",
   "distance_from_sydney",
   "distance_from_bendigo",
+  "price",
 ]);
 
 const BASE_WEIGHTS = {
@@ -124,6 +126,8 @@ const BASE_WEIGHTS = {
   average_mountain_base_snow_depth: 1.0,
   max_mountain_base_snow_depth: 1.0,
   biggest_snowfall: 1.0,
+  // Price
+  price: 1.5,
 };
 
 /* -------------------- Hard-coded dataset (your CSV rows) -------------------- */
@@ -170,6 +174,7 @@ const HARDCODED_DATA = [
     average_mountain_base_snow_depth: 0.9,
     max_mountain_base_snow_depth: 0.905405405,
     biggest_snowfall: 1,
+    price: 0.2, // $180/day - premium resort
     state: "NSW",
   },
   {
@@ -214,6 +219,7 @@ const HARDCODED_DATA = [
     average_mountain_base_snow_depth: 0.68,
     max_mountain_base_snow_depth: 0.878378378,
     biggest_snowfall: 0.633333333,
+    price: 0.4, // $140/day - premium but more affordable
     state: "VIC",
   },
   {
@@ -258,6 +264,7 @@ const HARDCODED_DATA = [
     average_mountain_base_snow_depth: 0.16,
     max_mountain_base_snow_depth: 0.202702703,
     biggest_snowfall: 0.466666667,
+    price: 1.0, // $80/day - most affordable
     state: "VIC",
   },
   {
@@ -302,6 +309,7 @@ const HARDCODED_DATA = [
     average_mountain_base_snow_depth: 0.4,
     max_mountain_base_snow_depth: 0.554054054,
     biggest_snowfall: 0.566666667,
+    price: 0.6, // $120/day - mid-range
     state: "VIC",
   },
   {
@@ -346,6 +354,7 @@ const HARDCODED_DATA = [
     average_mountain_base_snow_depth: 0.68,
     max_mountain_base_snow_depth: 0.878378378,
     biggest_snowfall: 0.4,
+    price: 0.3, // $160/day - premium
     state: "VIC",
   },
   {
@@ -390,6 +399,7 @@ const HARDCODED_DATA = [
     average_mountain_base_snow_depth: 0.88,
     max_mountain_base_snow_depth: 1,
     biggest_snowfall: 0.533333333,
+    price: 0.1, // $200/day - most expensive (largest resort)
     state: "NSW",
   },
   {
@@ -434,6 +444,7 @@ const HARDCODED_DATA = [
     average_mountain_base_snow_depth: 0.32,
     max_mountain_base_snow_depth: 0.432432432,
     biggest_snowfall: 0.533333333,
+    price: 0.8, // $90/day - budget friendly
     state: "NSW",
   },
   {
@@ -478,15 +489,16 @@ const HARDCODED_DATA = [
     average_mountain_base_snow_depth: 0.66,
     max_mountain_base_snow_depth: 0.918918919,
     biggest_snowfall: 0.8,
+    price: 0.2, // $180/day - premium resort
     state: "NSW",
   },
 ];
 
 /* -------------------- Helpers -------------------- */
-const buildWeights = ({ city, skill, withKids, wantXC, careDistance }) => {
+const buildWeights = ({ city, skill, withKids, wantXC, careDistance, carePrice, budget }) => {
   const w = { ...BASE_WEIGHTS };
 
-  // Distance weighting: boost only the chosen city’s distance feature.
+  // Distance weighting: boost only the chosen city's distance feature.
   // OFF  -> 2.0 (original behavior)
   // ON   -> 4.0 (stronger emphasis on travel time)
   const cityDistanceWeight = careDistance ? 10.0 : 2.0;
@@ -495,6 +507,11 @@ const buildWeights = ({ city, skill, withKids, wantXC, careDistance }) => {
   w.distance_from_sydney   = city === "Sydney"   ? cityDistanceWeight : 0.0;
   w.distance_from_canberra = city === "Canberra" ? cityDistanceWeight : 0.0;
   w.distance_from_bendigo  = city === "Bendigo"  ? cityDistanceWeight : 0.0;
+
+  // Price weighting: boost price importance when user cares about cost
+  // OFF  -> 1.5 (original behavior)
+  // ON   -> 3.0 (stronger emphasis on affordability)
+  w.price = carePrice ? 3.0 : 1.5;
 
   // Skill
   if (skill === "beginner") {
@@ -537,14 +554,23 @@ const buildWeights = ({ city, skill, withKids, wantXC, careDistance }) => {
 function computeTopsisScore(rows, features, prefs) {
   if (!rows.length) return [];
 
-  // Only use features that exist
-  const feats = features.filter((f) => f in rows[0]);
-  if (!feats.length) return [];
+  // Add budget difference as a virtual feature
+  const budget = prefs.budget || 150;
+  const rowsWithBudget = rows.map(r => {
+    const normalizedPrice = r.price || 0;
+    const actualPrice = Math.round(80 + (1 - normalizedPrice) * 120);
+    const budgetDifference = Math.abs(actualPrice - budget) / 100; // Normalize to 0-1 range
+    return { ...r, budget_difference: budgetDifference };
+  });
+
+  // Only use features that exist, including our virtual budget_difference
+  const feats = features.filter((f) => f in rowsWithBudget[0]);
+  feats.push('budget_difference'); // Add budget difference feature
 
   // mins / maxs
   const mins = {}, maxs = {};
   feats.forEach((f) => {
-    const vals = rows.map((r) => Number(r[f]) || 0);
+    const vals = rowsWithBudget.map((r) => Number(r[f]) || 0);
     mins[f] = Math.min(...vals);
     maxs[f] = Math.max(...vals);
   });
@@ -552,8 +578,8 @@ function computeTopsisScore(rows, features, prefs) {
   // PIS / NIS
   const PIS = {}, NIS = {};
   feats.forEach((f) => {
-    if (COST_FEATURES.has(f)) {
-      PIS[f] = mins[f];
+    if (COST_FEATURES.has(f) || f === 'budget_difference') {
+      PIS[f] = mins[f]; // Lower is better for cost features and budget difference
       NIS[f] = maxs[f];
     } else {
       PIS[f] = maxs[f];
@@ -561,14 +587,16 @@ function computeTopsisScore(rows, features, prefs) {
     }
   });
 
-  // weights
+  // weights - add budget difference weight
   const w = buildWeights(prefs);
+  w.budget_difference = 2.0; // Weight budget difference highly
+  
   const weightVec = feats.map((f) => w[f] ?? 0);
   const sumW = weightVec.reduce((a, b) => a + b, 0);
   const safeW = sumW === 0 ? weightVec.map(() => 1e-6) : weightVec;
 
   // distances
-  const dP = rows.map((r) => {
+  const dP = rowsWithBudget.map((r) => {
     let s = 0;
     for (let i = 0; i < feats.length; i++) {
       const f = feats[i];
@@ -578,7 +606,7 @@ function computeTopsisScore(rows, features, prefs) {
     return Math.sqrt(s);
   });
 
-  const dN = rows.map((r) => {
+  const dN = rowsWithBudget.map((r) => {
     let s = 0;
     for (let i = 0; i < feats.length; i++) {
       const f = feats[i];
@@ -594,14 +622,18 @@ function computeTopsisScore(rows, features, prefs) {
     return dn / denom; // higher is better
   });
 
-  const out = rows.map((r, i) => {
+  const out = rowsWithBudget.map((r, i) => {
     const week = BEST_WEEK_BY_RESORT[r.resort];
+    // Convert normalized price back to actual price for display
+    const normalizedPrice = r.price || 0;
+    const actualPrice = Math.round(80 + (1 - normalizedPrice) * 120); // $80-$200 range
     return {
       resort: r.resort,
       state: r.state || "",
       topsis_score: scores[i],
       best_week: week,
       best_week_label: week ? `Week ${week} (${WEEK_LABELS[week] || "N/A"})` : undefined,
+      price: actualPrice,
     };
   });
 
@@ -652,13 +684,15 @@ export default function App() {
   const [withKids, setWithKids] = useState(false);
   const [wantXC, setWantXC] = useState(false);
   const [careDistance, setCareDistance] = useState(false); // NEW
+  const [carePrice, setCarePrice] = useState(false); // NEW
+  const [budget, setBudget] = useState(150); // NEW - default to $150
   const [searchText, setSearchText] = useState("");
 
   const ranked = useMemo(() => {
     return computeTopsisScore(HARDCODED_DATA, ALL_FEATURES, {
-      city, skill, withKids, wantXC, careDistance,
+      city, skill, withKids, wantXC, careDistance, carePrice, budget,
     });
-  }, [city, skill, withKids, wantXC, careDistance]);
+  }, [city, skill, withKids, wantXC, careDistance, carePrice, budget]);
 
   const filtered = useMemo(() => {
     if (!searchText) return ranked;
@@ -761,6 +795,46 @@ export default function App() {
                 />
                 Want cross-country skiing
               </label>
+              <label className="flex items-center gap-2 text-sm mt-2">
+                <input
+                  type="checkbox"
+                  checked={carePrice}
+                  onChange={(e) => setCarePrice(e.target.checked)}
+                />
+                Price is important
+              </label>
+            </div>
+
+            {/* Budget Slider */}
+            <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-lg">
+              <h2 className="text-lg font-semibold mb-2">Budget Preference</h2>
+              <div className="space-y-3">
+                <label className="text-sm text-slate-300">
+                  Daily budget target: <span className="font-semibold text-green-400">${budget}</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="range"
+                    min="80"
+                    max="200"
+                    step="10"
+                    value={budget}
+                    onChange={(e) => setBudget(Number(e.target.value))}
+                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                    style={{
+                      background: `linear-gradient(to right, #10b981 0%, #10b981 ${((budget - 80) / 120) * 100}%, #374151 ${((budget - 80) / 120) * 100}%, #374151 100%)`
+                    }}
+                  />
+                  <div className="flex justify-between text-xs text-slate-400 mt-1">
+                    <span>$80</span>
+                    <span>$140</span>
+                    <span>$200</span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Resorts closer to your budget will rank higher
+                </p>
+              </div>
             </div>
 
             {/* Bar chart (auto-updates with inputs) */}
@@ -781,6 +855,12 @@ export default function App() {
                       {top.topsis_score.toFixed(3)}
                     </span>
                   </div>
+                  <div className="text-slate-200 text-sm">
+                    Price: <span className="font-semibold text-green-400">${top.price}/day</span>
+                    <span className="ml-2 text-xs text-slate-400">
+                      (${Math.abs(top.price - budget)} difference from target)
+                    </span>
+                  </div>
                   {!!top.best_week && (
                     <div className="text-xs">
                       <span className="inline-flex items-center gap-1 rounded-full bg-indigo-700/30 border border-indigo-500/40 px-2 py-0.5">
@@ -792,7 +872,7 @@ export default function App() {
                   )}
                 </div>
               ) : (
-                <p className="text-slate-2 00 mt-2">No matches.</p>
+                <p className="text-slate-200 mt-2">No matches.</p>
               )}
             </div>
 
@@ -815,6 +895,7 @@ export default function App() {
                       <th className="px-4 py-3 text-left">#</th>
                       <th className="px-4 py-3 text-left">Resort</th>
                       <th className="px-4 py-3 text-left">State</th>
+                      <th className="px-4 py-3 text-left">Price/day</th>
                       <th className="px-4 py-3 text-left">Best week</th>
                       <th className="px-4 py-3 text-left">TOPSIS</th>
                     </tr>
@@ -828,6 +909,14 @@ export default function App() {
                         <td className="px-4 py-3">{idx + 1}</td>
                         <td className="px-4 py-3 font-semibold">{r.resort}</td>
                         <td className="px-4 py-3">{r.state || "—"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="text-green-400 font-semibold">${r.price}</span>
+                            <span className="text-xs text-slate-400">
+                              ±${Math.abs(r.price - budget)} from target
+                            </span>
+                          </div>
+                        </td>
                         <td className="px-4 py-3">
                           {r.best_week_label ??
                             (r.best_week
